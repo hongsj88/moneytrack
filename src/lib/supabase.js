@@ -5,7 +5,7 @@ console.log('환경 변수 확인:')
 console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
 console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '***설정됨***' : '❌ 설정되지 않음')
 
-// vite.config.js에서 정의된 환경 변수 사용
+// 환경 변수 값 가져오기
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 

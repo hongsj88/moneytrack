@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [accountMergeNotification, setAccountMergeNotification] = useState(null)
   const [isMergingAccounts, setIsMergingAccounts] = useState(false)
+  const [processedUsers, setProcessedUsers] = useState(new Set()) // 이미 처리된 사용자 추적
 
   useEffect(() => {
     // 현재 세션 가져오기
@@ -39,41 +40,58 @@ export const AuthProvider = ({ children }) => {
       async (event, session) => {
         console.log('Auth 상태 변경:', event, session?.user?.email)
         
-        // 소셜 로그인 시 계정 통합 체크
+        // 소셜 로그인 시 계정 통합 체크 (무한 루프 방지)
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user
+          const userKey = `${user.id}_${user.email}` // 사용자 고유 키
           
-          // 소셜 로그인인지 확인 (OAuth provider 사용)
-          const isSocialLogin = user.app_metadata?.providers?.length > 0 && 
-                               user.app_metadata.providers.some(provider => provider !== 'email')
-          
-          if (isSocialLogin && user.email) {
-            console.log('🔗 소셜 로그인 감지, 계정 통합 체크 시작')
-            setIsMergingAccounts(true)
+          // 이미 처리된 사용자인지 확인
+          if (processedUsers.has(userKey)) {
+            console.log('ℹ️ 이미 처리된 사용자, 계정 통합 체크 건너뜀')
+          } else {
+            // 소셜 로그인인지 확인 (OAuth provider 사용)
+            const isSocialLogin = user.app_metadata?.providers?.length > 0 && 
+                                 user.app_metadata.providers.some(provider => provider !== 'email')
             
-            try {
-              const { merged, targetUserId, error } = await checkAndMergeAccounts(user)
+            if (isSocialLogin && user.email) {
+              console.log('🔗 소셜 로그인 감지, 계정 통합 체크 시작')
+              setIsMergingAccounts(true)
               
-              if (error) {
-                console.error('❌ 계정 통합 체크 실패:', error)
-              } else if (merged) {
-                console.log('✅ 계정 통합 완료, 알림 표시')
-                const notification = showAccountMergeNotification({ email: user.email })
-                setAccountMergeNotification(notification)
+              // 처리된 사용자로 추가
+              setProcessedUsers(prev => new Set([...prev, userKey]))
+              
+              try {
+                const { merged, targetUserId, error } = await checkAndMergeAccounts(user)
                 
-                // 5초 후 알림 자동 제거
-                setTimeout(() => {
-                  setAccountMergeNotification(null)
-                }, notification.duration)
+                if (error) {
+                  console.error('❌ 계정 통합 체크 실패:', error)
+                } else if (merged) {
+                  console.log('✅ 계정 통합 완료, 알림 표시')
+                  const notification = showAccountMergeNotification({ email: user.email })
+                  setAccountMergeNotification(notification)
+                  
+                  // 5초 후 알림 자동 제거
+                  setTimeout(() => {
+                    setAccountMergeNotification(null)
+                  }, notification.duration)
+                }
+              } catch (error) {
+                console.error('💥 계정 통합 처리 중 오류:', error)
+              } finally {
+                setIsMergingAccounts(false)
               }
-            } catch (error) {
-              console.error('💥 계정 통합 처리 중 오류:', error)
-            } finally {
-              setIsMergingAccounts(false)
             }
           }
         }
         
+        // 로그아웃 처리
+        if (event === 'SIGNED_OUT') {
+          console.log('🚪 Auth 상태: 로그아웃 감지')
+          setProcessedUsers(new Set())
+          setAccountMergeNotification(null)
+          setIsMergingAccounts(false)
+        }
+
         setSession(session)
         setUser(session?.user ?? null)
         setLoading(false)
@@ -211,15 +229,23 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setLoading(true)
+      console.log('🚪 로그아웃 시작')
+      
+      // 상태 초기화
+      setProcessedUsers(new Set())
+      setAccountMergeNotification(null)
+      setIsMergingAccounts(false)
+      
       const { error } = await supabase.auth.signOut()
       
       if (error) {
         throw error
       }
 
+      console.log('✅ 로그아웃 완료')
       return { error: null }
     } catch (error) {
-      console.error('로그아웃 오류:', error.message)
+      console.error('❌ 로그아웃 오류:', error.message)
       return { error }
     } finally {
       setLoading(false)
