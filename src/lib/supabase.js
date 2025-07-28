@@ -1,19 +1,13 @@
 import { createClient } from '@supabase/supabase-js'
 
-// 환경 변수 확인 및 디버깅
-console.log('환경 변수 확인:')
-console.log('VITE_SUPABASE_URL:', import.meta.env.VITE_SUPABASE_URL)
-console.log('VITE_SUPABASE_ANON_KEY:', import.meta.env.VITE_SUPABASE_ANON_KEY ? '***설정됨***' : '❌ 설정되지 않음')
-
 // 환경 변수 값 가져오기
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-
-// 연결 정보 확인
-console.log('Supabase 연결 정보:')
-console.log('URL:', supabaseUrl)
-console.log('Key:', supabaseAnonKey.substring(0, 20) + '...')
+// 환경 변수 검증 (배포 환경에서는 console.log 제거)
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase 환경 변수가 설정되지 않았습니다. VITE_SUPABASE_URL과 VITE_SUPABASE_ANON_KEY를 확인해주세요.')
+}
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 

@@ -38,46 +38,44 @@ export const AuthProvider = ({ children }) => {
     // 인증 상태 변경 리스너
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth 상태 변경:', event, session?.user?.email)
+
         
         // 소셜 로그인 시 계정 통합 체크 (무한 루프 방지)
         if (event === 'SIGNED_IN' && session?.user) {
           const user = session.user
           const userKey = `${user.id}_${user.email}` // 사용자 고유 키
           
-          // 이미 처리된 사용자인지 확인
-          if (processedUsers.has(userKey)) {
-            console.log('ℹ️ 이미 처리된 사용자, 계정 통합 체크 건너뜀')
-          } else {
+                      // 이미 처리된 사용자인지 확인
+            if (processedUsers.has(userKey)) {
+              // 이미 처리된 사용자는 계정 통합 체크 건너뜀
+            } else {
             // 소셜 로그인인지 확인 (OAuth provider 사용)
             const isSocialLogin = user.app_metadata?.providers?.length > 0 && 
                                  user.app_metadata.providers.some(provider => provider !== 'email')
             
-            if (isSocialLogin && user.email) {
-              console.log('🔗 소셜 로그인 감지, 계정 통합 체크 시작')
-              setIsMergingAccounts(true)
+                          if (isSocialLogin && user.email) {
+                setIsMergingAccounts(true)
               
               // 처리된 사용자로 추가
               setProcessedUsers(prev => new Set([...prev, userKey]))
               
-              try {
-                const { merged, targetUserId, error } = await checkAndMergeAccounts(user)
-                
-                if (error) {
-                  console.error('❌ 계정 통합 체크 실패:', error)
-                } else if (merged) {
-                  console.log('✅ 계정 통합 완료, 알림 표시')
-                  const notification = showAccountMergeNotification({ email: user.email })
-                  setAccountMergeNotification(notification)
+                              try {
+                  const { merged, targetUserId, error } = await checkAndMergeAccounts(user)
                   
-                  // 5초 후 알림 자동 제거
-                  setTimeout(() => {
-                    setAccountMergeNotification(null)
-                  }, notification.duration)
-                }
-              } catch (error) {
-                console.error('💥 계정 통합 처리 중 오류:', error)
-              } finally {
+                  if (error) {
+                    // 계정 통합 체크 실패 처리
+                  } else if (merged) {
+                    const notification = showAccountMergeNotification({ email: user.email })
+                    setAccountMergeNotification(notification)
+                    
+                    // 5초 후 알림 자동 제거
+                    setTimeout(() => {
+                      setAccountMergeNotification(null)
+                    }, notification.duration)
+                  }
+                } catch (error) {
+                  // 계정 통합 처리 중 오류 발생
+                } finally {
                 setIsMergingAccounts(false)
               }
             }
@@ -86,7 +84,6 @@ export const AuthProvider = ({ children }) => {
         
         // 로그아웃 처리
         if (event === 'SIGNED_OUT') {
-          console.log('🚪 Auth 상태: 로그아웃 감지')
           setProcessedUsers(new Set())
           setAccountMergeNotification(null)
           setIsMergingAccounts(false)
@@ -105,7 +102,6 @@ export const AuthProvider = ({ children }) => {
   const signUp = async (email, password, name) => {
     try {
       setLoading(true)
-      console.log('🔐 AuthContext signUp 시작:', { email, name })
       
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -117,17 +113,12 @@ export const AuthProvider = ({ children }) => {
         }
       })
 
-      console.log('📋 Supabase signUp 응답:', { data, error })
-
       if (error) {
-        console.error('❌ Supabase signUp 오류:', error)
         throw error
       }
 
-      console.log('✅ AuthContext signUp 성공:', data)
       return { data, error: null }
     } catch (error) {
-      console.error('💥 회원가입 오류:', error.message)
       return { data: null, error }
     } finally {
       setLoading(false)
@@ -138,7 +129,6 @@ export const AuthProvider = ({ children }) => {
   const signIn = async (email, password) => {
     try {
       setLoading(true)
-      console.log('🔐 로그인 시도:', email)
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -146,19 +136,11 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (error) {
-        console.error('❌ 로그인 실패:', error)
-        
-        // 더 자세한 에러 정보 로깅
-        console.log('에러 코드:', error.status)
-        console.log('에러 메시지:', error.message)
-        
         throw error
       }
 
-      console.log('✅ 로그인 성공:', data.user?.email)
       return { data, error: null }
     } catch (error) {
-      console.error('💥 로그인 오류:', error.message)
       return { data: null, error }
     } finally {
       setLoading(false)
@@ -169,7 +151,6 @@ export const AuthProvider = ({ children }) => {
   const signInWithGoogle = async () => {
     try {
       setLoading(true)
-      console.log('🔐 구글 로그인 시작')
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -183,14 +164,11 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (error) {
-        console.error('❌ 구글 로그인 오류:', error)
         throw error
       }
 
-      console.log('✅ 구글 로그인 리다이렉션 시작:', data)
       return { data, error: null }
     } catch (error) {
-      console.error('💥 구글 로그인 오류:', error.message)
       return { data: null, error }
     } finally {
       setLoading(false)
@@ -201,7 +179,6 @@ export const AuthProvider = ({ children }) => {
   const signInWithKakao = async () => {
     try {
       setLoading(true)
-      console.log('🟡 카카오 로그인 시작')
       
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'kakao',
@@ -211,14 +188,11 @@ export const AuthProvider = ({ children }) => {
       })
 
       if (error) {
-        console.error('❌ 카카오 로그인 오류:', error)
         throw error
       }
 
-      console.log('✅ 카카오 로그인 리다이렉션 시작:', data)
       return { data, error: null }
     } catch (error) {
-      console.error('💥 카카오 로그인 오류:', error.message)
       return { data: null, error }
     } finally {
       setLoading(false)
@@ -229,7 +203,6 @@ export const AuthProvider = ({ children }) => {
   const signOut = async () => {
     try {
       setLoading(true)
-      console.log('🚪 로그아웃 시작')
       
       // 상태 초기화
       setProcessedUsers(new Set())
@@ -242,10 +215,8 @@ export const AuthProvider = ({ children }) => {
         throw error
       }
 
-      console.log('✅ 로그아웃 완료')
       return { error: null }
     } catch (error) {
-      console.error('❌ 로그아웃 오류:', error.message)
       return { error }
     } finally {
       setLoading(false)
